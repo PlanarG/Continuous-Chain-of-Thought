@@ -2,7 +2,7 @@ lr: 2e-5
 per_device_train_batch_size: 1
 per_device_eval_batch_size: 1
 num_epochs: 5
-lr_scheduler: cosine
 warmup_ratio: 0.1
 max_seq_len: 256
 gradient_accumulation_steps: 4
+gradient_clip_val: 1.0

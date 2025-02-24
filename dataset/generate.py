@@ -38,19 +38,19 @@ def get_expression(length: int, num_range: int) -> List[List[str]]:
     if length == 1:
         return [[str(random.randint(0, 9))]]
     
+    operator = random.choice(operators)
+    left_length = random.randint(1, length - 1)
+    right_length = length - left_length
+    left = get_expression(left_length, num_range)
+
     while True:
         try: 
-            operator = random.choice(operators)
-            left_length = random.randint(1, length - 1)
-            right_length = length - left_length
-            left = get_expression(left_length, num_range)
             right = get_expression(right_length, num_range)
+            result = reduce(int(left[-1][0]), int(right[-1][0]), operator, num_range)
 
             # To get a more realistic synthetic dataset, the solution trajectory will be sampled randomly instead of being deterministic, eg. choose the left-most operator to reduce first.
             reduce_order = [1] * (left_length - 1) + [0] * (right_length - 1)
             random.shuffle(reduce_order)
-
-            result = reduce(int(left[-1][0]), int(right[-1][0]), operator, num_range)
 
             def merge_intermediate_step(left_cur, right_cur):
                 left_expr_reduced, right_expr_reduced = left[left_cur], right[right_cur]

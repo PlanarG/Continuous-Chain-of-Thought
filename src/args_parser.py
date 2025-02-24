@@ -3,7 +3,7 @@ import yaml
 import time
 import os
 
-def parse_arguments(rank: int = 0):
+def parse_arguments():
     parser = argparse.ArgumentParser()
     parser.add_argument('--config', help="Path to YAML config file")
     parser.add_argument('--train', action="store_true", help="Train the model", default=False)
@@ -33,8 +33,7 @@ def parse_arguments(rank: int = 0):
             for key, value in config.items():
                 setattr(args, key, value)
 
-    timestamp       = time.strftime("%Y-%m-%d-%H:%M:%S", time.localtime())
+    timestamp       = time.strftime("%Y-%m-%d-%H:%M", time.localtime())
     args.timestamp  = timestamp
-    args.rank       = rank
 
     return args

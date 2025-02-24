@@ -17,7 +17,7 @@ class Dataset:
         self.logger.info(f"Loading split {split} from dataset {self.args.data_dir}...")
 
         if os.path.exists(os.path.join(self.args.data_dir, split)):
-            data["dataset"] = load_dataset(os.path.join(self.args.data_dir, split), data_files="data.json")
+            data["dataset"] = load_dataset(os.path.join(self.args.data_dir, split), data_files="data.json")["train"]
             with open(os.path.join(self.args.data_dir, split, "info.json"), "r") as f:
                 data.update(json.load(f))
 

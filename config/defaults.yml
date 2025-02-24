@@ -1,4 +1,4 @@
 log_dir: logs
 ckpt_dir: models
-model_config: config/models/Qwen-1.5B-config.json
+model_config: config/models/CCoT-config-default.json
 data_dir: dataset/full
