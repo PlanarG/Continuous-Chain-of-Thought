@@ -39,8 +39,11 @@ class Block(Qwen2DecoderLayer):
         self.self_attn = Attention(config=config, layer_idx=layer_idx, is_causal=is_causal)
 
 class CCoT(nn.Module):
-    def __init__(self, config: CCoTConfig):
+    def __init__(self, args, logger):
         super().__init__()
+        config = CCoTConfig.load(args.model_config)
+        self.args = args
+        self.logger = logger
         self.config = config
         self.padding_idx = config.pad_token_id
         self.embed_tokens = nn.Embedding(config.vocab_size, config.hidden_size, self.padding_idx)
@@ -54,8 +57,6 @@ class CCoT(nn.Module):
         self.decoderlayers = nn.ModuleList(
             [Block(config, layer_idx, True) for layer_idx in range(config.num_hidden_layers)]
         )
-
-        self.load_from_pretrained_standard_cot(self.config.model_path)
 
     def get_position_embeds(self, x):
         length = x.shape[1]
@@ -96,30 +97,6 @@ class CCoT(nn.Module):
         
         logits = self.lm_head(hidden_states)
         return logits
-
-    def load_from_pretrained_standard_cot(self, model_path: str):
-        model = AutoModelForCausalLM.from_pretrained(model_path, tie_word_embeddings=False)
-
-        target_state_dict = model.state_dict()
-        new_state_dict = self.state_dict()
-
-        replacements = {
-            "layers": "decoderlayers", 
-            "model.": ""
-        }
-        
-        load_params = []
-        for key in target_state_dict.keys():
-            name = key
-            for old, new in replacements.items():
-                name = name.replace(old, new)
-            if name in new_state_dict:
-                new_state_dict[name] = target_state_dict[key]
-                load_params.append(name)
-        
-        print(f"{load_params=}")
-        
-        self.load_state_dict(new_state_dict)
 
     def generate(
         self, 

@@ -1,12 +1,40 @@
 import argparse
+import yaml
+import time
+import os
 
-def parse_arguments():
-    parser = argparse.ArgumentParser(description="CCoT")
-
-    parser.add_argument("--log_dir", type=str, default="logs", help="Directory to save logs")
-    parser.add_argument("--model_dir", type=str, default="models", help="Directory to save models")
-    parser.add_argument("--data_dir", type=str, default="data", help="Directory to save data")
-    parser.add_argument("--model_config", type=str, default="config/Qwen-1.5B-config.json", help="Model configuration file")
-
+def parse_arguments(rank: int = 0):
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--config', help="Path to YAML config file")
+    parser.add_argument('--train', action="store_true", help="Train the model", default=False)
+    parser.add_argument('--eval', action="store_true", help="Evaluate the model", default=False)
     args = parser.parse_args()
+
+    if not args.train and not args.eval:
+        raise ValueError("Either --train or --eval should be set")
+
+    if args.train and args.eval:
+        raise ValueError("Only one of --train or --eval should be set")
+
+    configs = ["config/defaults.yml"]
+    if args.train:
+        configs.append("config/train/train-defaults.yml")
+    if args.eval:
+        configs.append("config/eval/eval-defaults.yml")
+    if args.config:
+        configs.append(args.config)
+    
+    for config in configs:
+        if not os.path.exists(config):
+            raise FileNotFoundError(f"Config file {config} not found")
+
+        with open(config, "r") as f:
+            config = yaml.load(f, Loader=yaml.FullLoader)
+            for key, value in config.items():
+                setattr(args, key, value)
+
+    timestamp       = time.strftime("%Y-%m-%d-%H:%M:%S", time.localtime())
+    args.timestamp  = timestamp
+    args.rank       = rank
+
     return args
