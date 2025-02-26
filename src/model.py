@@ -193,7 +193,7 @@ class CCoTConfig:
         
         return CCoTConfig(**config)
 
-class CCOTEncoder(nn.Module):
+class CCoTEncoder(nn.Module):
     def __init__(self, config: CCoTConfig):
         super().__init__()
         self.config = config
@@ -235,7 +235,7 @@ class CCoTDecoder(nn.Module):
         x = self.ln_f(x)
         return x
 
-class CCOT(nn.Module):
+class CCoT(nn.Module):
     def __init__(self, args, logger):
         super().__init__()
         config = CCoTConfig.load(args.model_config)
@@ -253,7 +253,7 @@ class CCOT(nn.Module):
         self.intermediate = nn.Linear(config.encoder_hidden_size, config.decoder_hidden_size)
         self.lm_head = nn.Linear(config.decoder_hidden_size, config.vocab_size, bias=True)
 
-        self.encoder = CCOTEncoder(config)
+        self.encoder = CCoTEncoder(config)
         self.decoder = CCoTDecoder(config)
     
     def encode(

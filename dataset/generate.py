@@ -30,13 +30,13 @@ def reduce(a: int, b: int, op: str, num_range: int) -> int:
 
 # generate a random arithmetic expression with a solution trajectory
 # the expression will not be surrounded by parentheses
-# eg. get_expression(2, 10) -> [["1", "+", "2"], ["3"]]
-# eg. get_expression(3, 10) -> [["(", "1", "+", "2", ")", "*", "3"], ["3", "*", "3"], ["9"]]
+# eg. get_expression(2, 11) -> [["1", "+", "2"], ["3"]]
+# eg. get_expression(3, 11) -> [["(", "1", "+", "2", ")", "*", "3"], ["3", "*", "3"], ["9"]]
 # length: the number of elements in the expression
 # num_range: the range of the numbers. It should be a prime number.
 def get_expression(length: int, num_range: int) -> List[List[str]]:
     if length == 1:
-        return [[str(random.randint(0, 9))]]
+        return [[str(random.randint(0, num_range - 1))]]
     
     operator = random.choice(operators)
     left_length = random.randint(1, length - 1)
