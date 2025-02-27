@@ -3,5 +3,5 @@ python dataset/generate.py \
     --length 6 \
     --num_range 19 \
     --train_samples 20 \
-    --test_samples 10 \
+    --test_samples 10 
     

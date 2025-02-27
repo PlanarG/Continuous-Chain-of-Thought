@@ -76,7 +76,7 @@ for epoch in range(args.num_epochs):
             loss = criterion(output_logits.transpose(1, 2), output_ids)
 
             accelerator.backward(loss)
-            
+
             if accelerator.sync_gradients:
                 accelerator.clip_grad_norm_(model.parameters(), args.gradient_clip_val)
             
@@ -89,7 +89,7 @@ for epoch in range(args.num_epochs):
             logger.info(f"Epoch {epoch + 1}/{args.num_train_epochs} | Step {global_step} | Loss {loss.item()}")
             # wandb.log({"loss": loss.item()})
         
-    if args.rank == 0 and global_step % args.save_steps == 0:
+    if args.rank == 0 and epoch % args.save_epochs == 0:
         unwrapped_model = accelerator.unwrap_model(model)
 
         logger.info(f"Saving model checkpoint")

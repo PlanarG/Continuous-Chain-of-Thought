@@ -136,7 +136,8 @@ class Dataset:
             json.dump({
                 "num_samples": self.num_samples,
                 "avg_length":  self.avg_length, 
-                "max_length":  self.max_length
+                "max_length":  self.max_length, 
+                "num_range":   self.args.num_range
             }, f, indent=2)
 
 # python dataset/generate.py --length 10 --num_range 59 --train_samples 1000000 --test_samples 10000 --num_workers 4 --exact --data_dir dataset/full
