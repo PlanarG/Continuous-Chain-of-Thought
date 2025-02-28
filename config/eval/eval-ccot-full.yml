@@ -1,0 +1,4 @@
+data_dir: dataset/full
+model_path: models/2025-02-27-03:23/model-57310.pth
+per_device_eval_batch_size: 96
+num_range: 59

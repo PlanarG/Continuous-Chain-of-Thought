@@ -90,7 +90,7 @@ def get_batch_expression(args, split: str, num_samples: int, process_id: int):
         length = args.length
         if not args.exact:
             # longer expressions are more likely to be sampled
-            length = random.choices(range(2, length), weights=[i for i in range(2, length)])[0]
+            length = random.choices(range(2, length + 1), weights=[i for i in range(2, length + 1)])[0]
 
         entry = get_expression(length, args.num_range)
         data.append(convert(entry))

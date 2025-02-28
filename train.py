@@ -9,7 +9,7 @@ from tqdm import tqdm
 from src.args_parser import parse_arguments
 from src.logger import get_logger
 from src.model import CCoT
-from src.tokenizer import tokenizer
+from src.tokenizer import tokenizer, decode
 from dataset.dataset import Dataset
 
 from accelerate import Accelerator
@@ -21,11 +21,18 @@ args.rank = accelerator.process_index
 logger  = get_logger(args)
 dataset = Dataset(args, logger)
 device  = accelerator.device
-model   = CCoT(args, logger).to(device)
+model   = CCoT(args, logger, device)
+unwrapped_model = model
 
 train_dataset = torch.utils.data.DataLoader(
     dataset.train["dataset"], 
     batch_size=args.per_device_train_batch_size,
+    shuffle=True
+)
+
+eval_dataset = torch.utils.data.DataLoader(
+    dataset.test["dataset"], 
+    batch_size=args.per_device_eval_batch_size,
     shuffle=True
 )
 
@@ -34,7 +41,7 @@ optimizer = torch.optim.AdamW(model.parameters())
 total_steps = (len(train_dataset) * args.num_epochs) // args.gradient_accumulation_steps
 scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, max_lr=args.lr, total_steps=total_steps, pct_start=args.warmup_ratio)
 
-model, optimizer, train_dataloader, scheduler = accelerator.prepare(model, optimizer, train_dataset, scheduler)
+model, optimizer, train_dataloader, eval_dataloader, scheduler = accelerator.prepare(model, optimizer, train_dataset, eval_dataset, scheduler)
 
 ckpt_save_path = os.path.join(args.ckpt_dir, args.timestamp)
 if args.rank == 0:
@@ -60,6 +67,8 @@ for epoch in range(args.num_epochs):
 
         input_ids = tokenizer(batch["input"], num_range=args.num_range).to(device)
         output_ids = tokenizer(batch["output"], num_range=args.num_range).to(device)
+        label_ids = torch.zeros_like(output_ids).to(device)
+        label_ids[:, :-1] = output_ids[:, 1:]
 
         num_loops = random.randint(5, 15)
 
@@ -73,7 +82,7 @@ for epoch in range(args.num_epochs):
 
             output_len = output_ids.shape[1]
             output_logits = logits[:, -output_len:, :]
-            loss = criterion(output_logits.transpose(1, 2), output_ids)
+            loss = criterion(output_logits.transpose(1, 2), label_ids)
 
             accelerator.backward(loss)
 
@@ -86,13 +95,39 @@ for epoch in range(args.num_epochs):
 
 
         if args.rank == 0 and global_step % args.logging_steps == 0:
-            logger.info(f"Epoch {epoch + 1}/{args.num_train_epochs} | Step {global_step} | Loss {loss.item()}")
+            logger.info(f"Epoch {epoch + 1}/{args.num_epochs} | Step {global_step} | Loss {loss.item()}")
             # wandb.log({"loss": loss.item()})
         
     if args.rank == 0 and epoch % args.save_epochs == 0:
         unwrapped_model = accelerator.unwrap_model(model)
 
         logger.info(f"Saving model checkpoint")
-        torch.save(unwrapped_model.state_dict(), os.path.join(ckpt_save_path, f"model-{global_step}.pth"))   
-        logger.info(f"Model checkpoint saved to {ckpt_save_path}/model-{global_step}.pth")
+        torch.save(unwrapped_model.state_dict(), os.path.join(ckpt_save_path, f"model-{epoch}.pth"))   
+        logger.info(f"Model checkpoint saved to {ckpt_save_path}/model-{epoch}.pth")
     
+    if epoch % 5 == 0:
+        pbar = eval_dataloader
+        model_unwrapped = accelerator.unwrap_model(model)
+
+        if args.rank == 0:
+            pbar = tqdm(pbar, desc=f"Evaluating", total=len(eval_dataloader))
+
+        acc_list = []
+        for batch in pbar:
+            input_ids = tokenizer(batch["input"], num_range=args.num_range).to(device)
+            answers = batch["answer"].to(device)
+
+            bz = input_ids.shape[0]
+
+            with torch.no_grad():
+                outputs, results = model_unwrapped.generate(input_ids, num_loops=10, num_contemplation_tokens=10)
+                results_str = decode(results, to_list=True)
+                corr = [results_str[i] == str(answers[i].item()) for i in range(bz)]
+                acc = torch.tensor(corr, dtype=torch.float).to(device).mean()
+            
+            acc = accelerator.gather(acc)
+            acc_list.append(acc.mean().item())
+
+        if args.rank == 0:
+            logger.info(f"Accuracy: {sum(acc_list) / len(acc_list)}")
+

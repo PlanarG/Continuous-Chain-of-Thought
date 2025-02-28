@@ -1,7 +1,8 @@
 {
+    "bos_token_id": 1, 
     "eos_token_id": 2, 
     "num_encoder_layers": 3,
-    "num_decoder_layers": 2,
+    "num_decoder_layers": 1,
     "encoder_hidden_size": 1536,
     "decoder_hidden_size": 768,
     "encoder_head": 12,

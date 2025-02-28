@@ -32,5 +32,21 @@ def tokenizer(
 
     return x
 
+def decode(
+    sentence: torch.Tensor,
+    to_list: bool = False
+):
+    global token_dict 
+    if token_dict is None:
+        raise ValueError("Token dict is not constructed.")
+    
+    reverse_token_dict = {i: token for token, i in token_dict.items()}
+    
+    if to_list:
+        return [reverse_token_dict[i.item()] for i in sentence]
+    else:
+        return " ".join([reverse_token_dict[i.item()] for i in sentence])
+
 if __name__ == "__main__":
     print(tokenizer(["1 + 11 = 12", "( 2 + 2 ) * 3 = 12"], 13))
+    print(decode(tokenizer(["1 + 11 = 12"], 13)[0]))

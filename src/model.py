@@ -161,6 +161,7 @@ class Block(nn.Module):
 class CCoTConfig:
     def __init__(
         self, 
+        bos_token_id: int = 1,
         eos_token_id: int = 2,
         num_encoder_layers: int = 3, 
         num_decoder_layers: int = 1, 
@@ -174,6 +175,7 @@ class CCoTConfig:
         encoder_maxlen: int = 256,
         decoder_maxlen: int = 1024,
     ):
+        self.bos_token_id = bos_token_id
         self.eos_token_id = eos_token_id
         self.num_encoder_layers = num_encoder_layers
         self.num_decoder_layers = num_decoder_layers
@@ -236,7 +238,7 @@ class CCoTDecoder(nn.Module):
         return x
 
 class CCoT(nn.Module):
-    def __init__(self, args, logger):
+    def __init__(self, args, logger, device):
         super().__init__()
         config = CCoTConfig.load(args.model_config)
         self.args = args
@@ -255,6 +257,25 @@ class CCoT(nn.Module):
 
         self.encoder = CCoTEncoder(config)
         self.decoder = CCoTDecoder(config)
+
+        self.device = device
+        self.to(device)
+
+        if hasattr(args, "model_path"):
+            self.load(args.model_path)
+
+    def load(self, model_path: str):
+        self.logger.info(f"Loading model from {model_path}...")
+        state_dict = torch.load(model_path, map_location=self.device)
+
+        new_state_dict = self.state_dict()
+
+        for key in state_dict.keys():  
+            if 'RPE' not in key:
+                new_state_dict[key] = state_dict[key]
+
+        self.load_state_dict(new_state_dict, strict=True)
+        self.logger.info(f"Model loaded from {model_path}")
     
     def encode(
         self, 
@@ -308,27 +329,30 @@ class CCoT(nn.Module):
     def generate(
         self, 
         input_ids: torch.Tensor,
-        max_length: int = 100,
+        max_length: int = 200,
         num_loops: int = 0,
         num_contemplation_tokens: int = 0
     ):
         hidden_states = self.encode(input_ids, num_loops, num_contemplation_tokens)
         hidden_states = self.intermediate(hidden_states)
 
+        shift = hidden_states.shape[1]
+
         bz = input_ids.shape[0]
 
         answer = torch.zeros((bz, max_length), dtype=torch.long).to(input_ids.device)
+        answer[:, 0] = self.config.bos_token_id
         cur = torch.zeros(bz, dtype=torch.long).to(input_ids.device)
 
-        for _ in range(max_length):
+        for _ in range(max_length - 1):
             logits = self.decode(hidden_states, answer)
-            idx_new = torch.argmax(logits, dim=2).int()
-            answer[torch.arange(bz), cur] = idx_new
+            idx_new = torch.argmax(logits, dim=2).int()[torch.arange(bz), cur + shift]
+            answer[torch.arange(bz), cur + 1] = idx_new.long()
 
-            if torch.sum(idx_new[torch.arange(bz), cur] == self.config.eos_token_id) == bz:
+            if torch.sum(idx_new == self.config.eos_token_id) == bz:
                 break
 
-            cur[idx_new[torch.arange(bz), cur] != self.config.eos_token_id] += 1
+            cur[idx_new != self.config.eos_token_id] += 1
         
-        return answer
+        return answer, answer[torch.arange(bz), cur]
 
