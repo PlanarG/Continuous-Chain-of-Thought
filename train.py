@@ -8,7 +8,7 @@ from tqdm import tqdm
 
 from src.args_parser import parse_arguments
 from src.logger import get_logger
-from src.model import CCoT
+from src.model import get_model
 from src.tokenizer import tokenizer, decode
 from dataset.dataset import Dataset
 
@@ -21,7 +21,7 @@ args.rank = accelerator.process_index
 logger  = get_logger(args)
 dataset = Dataset(args, logger)
 device  = accelerator.device
-model   = CCoT(args, logger, device)
+model   = get_model(args, logger, device)
 unwrapped_model = model
 
 train_dataset = torch.utils.data.DataLoader(
@@ -105,14 +105,19 @@ for epoch in range(args.num_epochs):
         torch.save(unwrapped_model.state_dict(), os.path.join(ckpt_save_path, f"model-{epoch}.pth"))   
         logger.info(f"Model checkpoint saved to {ckpt_save_path}/model-{epoch}.pth")
     
-    if epoch % 5 == 0:
-        pbar = eval_dataloader
+    if (epoch + 1) % 5 == 0:
         model_unwrapped = accelerator.unwrap_model(model)
 
+        max_eval_steps = len(eval_dataloader)
+        if hasattr(args, "max_eval_steps"):
+            max_eval_steps = min(max_eval_steps, args.max_eval_steps)
+
+        pbar = eval_dataloader
         if args.rank == 0:
-            pbar = tqdm(pbar, desc=f"Evaluating", total=len(eval_dataloader))
+            pbar = tqdm(pbar, desc=f"Evaluating", total=max_eval_steps)
 
         acc_list = []
+        eval_steps = 0
         for batch in pbar:
             input_ids = tokenizer(batch["input"], num_range=args.num_range).to(device)
             answers = batch["answer"].to(device)
@@ -127,6 +132,10 @@ for epoch in range(args.num_epochs):
             
             acc = accelerator.gather(acc)
             acc_list.append(acc.mean().item())
+            eval_steps += 1
+
+            if eval_steps >= max_eval_steps:
+                break
 
         if args.rank == 0:
             logger.info(f"Accuracy: {sum(acc_list) / len(acc_list)}")

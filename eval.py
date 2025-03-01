@@ -8,7 +8,7 @@ from tqdm import tqdm
 
 from src.args_parser import parse_arguments
 from src.logger import get_logger
-from src.model import CCoT
+from src.model import get_model
 from src.tokenizer import tokenizer, decode
 from dataset.dataset import Dataset
 
@@ -18,12 +18,10 @@ args = parse_arguments()
 accelerator = Accelerator()
 args.rank = accelerator.process_index
 
-print(args)
-
 logger  = get_logger(args)
 dataset = Dataset(args, logger)
 device  = accelerator.device
-model   = CCoT(args, logger, device)
+model   = get_model(args, logger, device)
 
 model_unwrapped = model
 
@@ -42,7 +40,6 @@ if args.rank == 0:
 acc_list = []
 for batch in pbar:
     input_ids = tokenizer(batch["input"], num_range=args.num_range).to(device)
-    output_ids = tokenizer(batch["output"], num_range=args.num_range).to(device)
     answers = batch["answer"].to(device)
 
     bz = input_ids.shape[0]
