@@ -56,6 +56,12 @@ criterion = torch.nn.CrossEntropyLoss(ignore_index=0)
 
 global_step = 0
 
+wandb.init(
+    project = "CCoT", 
+    name    = args.timestamp,
+    config  = vars(args)
+)
+
 for epoch in range(args.num_epochs):
 
     pbar = train_dataloader
@@ -70,14 +76,15 @@ for epoch in range(args.num_epochs):
         label_ids = torch.zeros_like(output_ids).to(device)
         label_ids[:, :-1] = output_ids[:, 1:]
 
-        num_loops = random.randint(5, 15)
+        num_loops = random.randint(7, 16)
+        num_contemplation_tokens = random.randint(5, 10)
 
         with accelerator.accumulate(model):
             logits = model(
                 input_ids  = input_ids, 
                 answer_ids = output_ids, 
                 num_loops  = num_loops, 
-                num_contemplation_tokens = 10
+                num_contemplation_tokens = num_contemplation_tokens
             )
 
             output_len = output_ids.shape[1]
@@ -93,10 +100,11 @@ for epoch in range(args.num_epochs):
             scheduler.step()
             optimizer.zero_grad()
 
+        if args.rank == 0:
+            wandb.log({"loss": loss.item()}, step=global_step)
 
         if args.rank == 0 and global_step % args.logging_steps == 0:
             logger.info(f"Epoch {epoch + 1}/{args.num_epochs} | Step {global_step} | Loss {loss.item()}")
-            # wandb.log({"loss": loss.item()})
         
     if args.rank == 0 and epoch % args.save_epochs == 0:
         unwrapped_model = accelerator.unwrap_model(model)
@@ -105,7 +113,7 @@ for epoch in range(args.num_epochs):
         torch.save(unwrapped_model.state_dict(), os.path.join(ckpt_save_path, f"model-{epoch}.pth"))   
         logger.info(f"Model checkpoint saved to {ckpt_save_path}/model-{epoch}.pth")
     
-    if (epoch + 1) % 5 == 0:
+    if (epoch + 1) % 3 == 0:
         model_unwrapped = accelerator.unwrap_model(model)
 
         max_eval_steps = len(eval_dataloader)
@@ -139,4 +147,5 @@ for epoch in range(args.num_epochs):
 
         if args.rank == 0:
             logger.info(f"Accuracy: {sum(acc_list) / len(acc_list)}")
+            wandb.log({"test acc": sum(acc_list) / len(acc_list)}, step=global_step)
 
