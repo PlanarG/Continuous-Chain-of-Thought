@@ -1,6 +1,6 @@
 python dataset/generate.py \
-    --data_dir dataset/test-9/ \
-    --length 9 \
+    --data_dir dataset/test-17/ \
+    --length 17 \
     --exact \
     --num_range 59 \
     --train_samples 100 \

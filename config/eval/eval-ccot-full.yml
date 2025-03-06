@@ -1,4 +1,4 @@
-data_dir: dataset/test-10
-model_path: ckpts/ccot-length10-59-full.pth
+data_dir: dataset/test-17
+model_path: ckpts/ccot-length15-59.pth
 per_device_eval_batch_size: 64
 num_range: 59

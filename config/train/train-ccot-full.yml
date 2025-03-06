@@ -1,6 +1,6 @@
 num_epochs: 200
 data_dir: dataset/full
-model_path: models/2025-03-01-07:15/model-0.pth
+model_path: ckpts/ccot-length15-59.pth
 max_eval_steps: 20
 per_device_train_batch_size: 64
 per_device_eval_batch_size: 64

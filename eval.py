@@ -45,8 +45,11 @@ for batch in pbar:
     bz = input_ids.shape[0]
 
     with torch.no_grad():
-        outputs, results = model_unwrapped.generate(input_ids, num_loops=20, num_contemplation_tokens=20, max_length=500)
+        outputs, results = model_unwrapped.generate(input_ids, num_loops=20, num_contemplation_tokens=9, max_length=550)
         results_str = decode(results, to_list=True)
+        if args.rank == 0:
+            logger.debug(batch["input"][0])
+            logger.debug(decode(outputs[0]))
         corr = [results_str[i] == str(answers[i].item()) for i in range(bz)]
         acc = torch.tensor(corr, dtype=torch.float).to(device).mean()
     

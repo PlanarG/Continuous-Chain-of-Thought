@@ -8,3 +8,4 @@ gradient_accumulation_steps: 4
 gradient_clip_val: 1.0
 logging_steps: 100
 save_epochs: 1
+eval_epochs: 3

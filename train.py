@@ -56,11 +56,12 @@ criterion = torch.nn.CrossEntropyLoss(ignore_index=0)
 
 global_step = 0
 
-wandb.init(
-    project = "CCoT", 
-    name    = args.timestamp,
-    config  = vars(args)
-)
+if args.rank == 0:
+    wandb.init(
+        project = "CCoT", 
+        name    = args.timestamp,
+        config  = vars(args)
+    )
 
 for epoch in range(args.num_epochs):
 
@@ -113,7 +114,7 @@ for epoch in range(args.num_epochs):
         torch.save(unwrapped_model.state_dict(), os.path.join(ckpt_save_path, f"model-{epoch}.pth"))   
         logger.info(f"Model checkpoint saved to {ckpt_save_path}/model-{epoch}.pth")
     
-    if (epoch + 1) % 3 == 0:
+    if (epoch + 1) % args.eval_epochs == 0:
         model_unwrapped = accelerator.unwrap_model(model)
 
         max_eval_steps = len(eval_dataloader)
@@ -133,7 +134,12 @@ for epoch in range(args.num_epochs):
             bz = input_ids.shape[0]
 
             with torch.no_grad():
-                outputs, results = model_unwrapped.generate(input_ids, num_loops=10, num_contemplation_tokens=10)
+                outputs, results = model_unwrapped.generate(
+                    input_ids  = input_ids, 
+                    max_length = 500, 
+                    num_loops  = 10, 
+                    num_contemplation_tokens = 10
+                )
                 results_str = decode(results, to_list=True)
                 corr = [results_str[i] == str(answers[i].item()) for i in range(bz)]
                 acc = torch.tensor(corr, dtype=torch.float).to(device).mean()

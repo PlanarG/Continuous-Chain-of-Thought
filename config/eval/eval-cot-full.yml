@@ -1,6 +1,6 @@
-data_dir: dataset/test-9
+data_dir: dataset/test-16
 model: CoT
 model_config: config/models/CoT-config-default.json
-model_path: ckpts/cot-length10-59-full.pth
+model_path: ckpts/cot-length15-59.pth
 per_device_eval_batch_size: 64
 num_range: 59
